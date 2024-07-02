@@ -1,5 +1,6 @@
 import falcon
 from playhouse.shortcuts import model_to_dict
+from cart_api.database import DatabaseCartItem
 
 # from cart_api.database import DatabaseCartItem
 
@@ -12,8 +13,39 @@ from playhouse.shortcuts import model_to_dict
 
 
 class CartItems:
-    pass
+    def on_post(self, req, resp):
+        new_cartitem = req.get_media()
+        new_model = DatabaseCartItem(
+            name=new_cartitem["name"],
+            price=new_cartitem["price"],
+            quantity=new_cartitem["quantity"],
+        )
+        new_model.save()
+        resp.media = model_to_dict(new_model)
+        resp.status = falcon.HTTP_201
+
+    def on_get(self, req, resp):
+        resp.media = []
+        cartitems = DatabaseCartItem.select()
+        for cartitem in cartitems:
+            resp.media.append(model_to_dict(cartitem))
+        resp.status = falcon.HTTP_200
 
 
 class CartItem:
-    pass
+    def on_get(self, req, resp, cartitem_id):
+        cartitem = DatabaseCartItem.get(id=cartitem_id)
+        resp.media = model_to_dict(cartitem)
+        resp.status = falcon.HTTP_200
+
+    def on_delete(self, req, resp, cartitem_id):
+        DatabaseCartItem.delete_by_id(cartitem_id)
+        resp.status = falcon.HTTP_204
+
+    def on_patch(self, req, resp, cartitem_id):
+        cartitem = DatabaseCartItem.get(id=cartitem_id)
+        changes = req.media
+        if "quantity" in changes:
+            cartitem.quantity = changes["quantity"]
+            cartitem.save()
+        resp.status = falcon.HTTP_204
